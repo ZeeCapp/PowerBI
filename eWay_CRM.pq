@@ -53,7 +53,8 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
         JsonData = List.Combine(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable)
+        logoutResult = Json.Document(Logout(ApiUrl, SessionId)),
+        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable, logoutResult)
     in
         Table;
 
@@ -73,6 +74,22 @@ GetItemsByItemGuids = (Index, ApiUrl, FolderName, SessionId, IdentifiersList, In
         JsonData = DataResult[Data]
     in
         JsonData;
+
+Logout = (ApiUrl, SessionId) =>
+    let
+        LogoutUrl = ApiUrl & "LogOut",
+        LogoutBody = "{ ""sessionId"": """ & SessionId & """ }"
+    in
+        Web.Contents(LogoutUrl,
+            [
+                Headers = [
+                    #"Content-Type"="application/json",
+                    RequestGUID=Text.NewGuid()
+                ],
+                Content = Text.ToBinary(LogoutBody),
+                Timeout=#duration(0, 0, 0, 10)
+            ]
+        );
 
 Base64UrlToBase64 = (base64Url) =>
     let
@@ -314,7 +331,7 @@ SchemaTransformTable = (table as table, schema as table, optional enforceSchema 
     in
         withType;
 
-ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table) as table =>
+ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table, optional logoutResult) as table =>
     let
         schemaNames = schema[Name],
         expanded = if (Table.HasColumns(table, { "Column1" })) then Table.ExpandRecordColumn(table, "Column1", schemaNames) else table,
