@@ -53,8 +53,8 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
         JsonData = List.Combine(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        logoutResult = Json.Document(Logout(ApiUrl, SessionId)),
-        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable, logoutResult)
+        LogoutResult = Json.Document(Logout(ApiUrl, SessionId)),
+        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable, LogoutResult)
     in
         Table;
 
@@ -331,6 +331,8 @@ SchemaTransformTable = (table as table, schema as table, optional enforceSchema 
     in
         withType;
 
+// logoutResult is not actually used here, but if we don't use the logout result anywhere, PowerQuery won't free the session for unknown reasons
+// (probably something to do with unused variables and query optimisation). By adding a function param here and passing the logout result we fix this issue.
 ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table, optional logoutResult) as table =>
     let
         schemaNames = schema[Name],
