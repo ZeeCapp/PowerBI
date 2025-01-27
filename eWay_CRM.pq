@@ -99,7 +99,7 @@ Base64UrlToBase64 = (base64Url) =>
 
 AddPaddingToBase64String = (base64) =>
     let
-        base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then AddPaddingToBase64String(base64 & "=") else base64
+        base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then @AddPaddingToBase64String(base64 & "=") else base64
     in
         base64;
 
@@ -844,6 +844,8 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"HID", type number},
         {"IsCompleted", type logical},
         {"IsLost", type logical},
+        {"LostDate", type datetimezone},
+        {"CompletedDate", type datetimezone},
         {"LastActivity", type datetimezone},
         {"LeadOriginEn", type text},
         {"NextStep", type datetimezone},
@@ -930,6 +932,8 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"InvoicePaymentDate", type datetimezone},
         {"IsCompleted", type logical},
         {"IsLost", type logical},
+        {"LostDate", type datetimezone},
+        {"CompletedDate", type datetimezone},
         {"LastActivity", type datetimezone},
         {"LicensePrice", type number},
         {"LicensePriceChanged", type datetimezone},
