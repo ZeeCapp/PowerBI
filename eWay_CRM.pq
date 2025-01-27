@@ -7,22 +7,11 @@ shared eWayCRM.Contents = Value.ReplaceType(eWayCRM_Implementation, eWayCRM_Type
 
 eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
     let
-        Credential = Extension.CurrentCredential(),
-        WebServiceUrl = GetWebServiceFromToken(Credential[access_token]),
-        UserName = GetUserNameFromToken(Credential[access_token]),
-        ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
-        LoginUrl = ApiUrl & "Login",
+        SessionResult = CreateSession(Extension.CurrentCredential()),
+        ApiUrl = SessionResult[ApiUrl],
+        SessionId = SessionResult[SessionId],
         IncludeRelations = if (IncludeRelations = null) then false else IncludeRelations,
         IncludeRelationsParameter = if (IncludeRelations = true) then "true" else "false",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_200"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
-        SessionResult = Json.Document(Web.Contents(LoginUrl,
-            [
-                Headers = [#"Content-Type"="application/json"],
-                Content = Text.ToBinary(SessionBody),
-                IsRetry = true
-            ]
-        )),
-        SessionId = SessionResult[SessionId],
         AdditionalFieldsUrl = ApiUrl & "/SearchAdditionalFields",
         AdditionalFieldsBody = "{ ""sessionId"": """ & SessionId & """,	""transmitObject"": { ""ObjectTypeFolderName"": """ & FolderName & """ } }",
         AdditionalFields = Json.Document(Web.Contents(AdditionalFieldsUrl,
@@ -53,10 +42,85 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
         JsonData = List.Combine(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        LogoutResult = Json.Document(Logout(ApiUrl, SessionId)),
-        Table = ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable, LogoutResult)
+        LogoutResult = Logout(ApiUrl, SessionId),
+        Table = if JsonDataTable <> null and LogoutResult[ReturnCode] = "rcSuccess" 
+                    then ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable) 
+                    else #table({"error"}, {"Api error."})
     in
         Table;
+
+CreateSession = (Credential as record) =>
+    let
+        WebServiceUrl = GetWebServiceFromToken(Credential[access_token]),
+        UserName = GetUserNameFromToken(Credential[access_token]),
+        ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
+        LoginUrl = ApiUrl & "Login",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_200"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionResult = Json.Document(Web.Contents(LoginUrl,
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(SessionBody),
+                IsRetry = true
+            ]
+        )),
+        SessionId = SessionResult[SessionId]
+    in
+        [SessionId = SessionId, ApiUrl = ApiUrl];
+
+UseQuery = (Query as text) => 
+    let
+        SessionResult = CreateSession(Extension.CurrentCredential()),
+        ApiUrl = SessionResult[ApiUrl],
+        SessionId = SessionResult[SessionId],
+        QueryBody = "{ ""sessionId"": """ & SessionId & """, ""query"": " & Query & " }",
+        QueryResult = Json.Document(Web.Contents(ApiUrl & "/Query",
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(QueryBody),
+                IsRetry = true
+            ]
+        )),
+        LogoutResult = Logout(ApiUrl, SessionId),
+        Table = if QueryResult[Data] <> null and LogoutResult[ReturnCode] = "rcSuccess" 
+                    then Table.FromRecords(QueryResult[Data]) 
+                    else #table({"error"}, {"Query error."})
+    in
+        Table;
+
+UseQueryAmount = (Query as text) => 
+    let
+        SessionResult = CreateSession(Extension.CurrentCredential()),
+        ApiUrl = SessionResult[ApiUrl],
+        SessionId = SessionResult[SessionId],
+        QueryBody = "{ ""sessionId"": """ & SessionId & """, ""query"": " & Query & " }",
+        QueryResult = Json.Document(Web.Contents(ApiUrl & "/QueryAmount",
+            [
+                Headers = [#"Content-Type"="application/json"],
+                Content = Text.ToBinary(QueryBody),
+                IsRetry = true
+            ]
+        )),
+        LogoutResult = Logout(ApiUrl, SessionId),
+        Table = if QueryResult[Datum] <> null and LogoutResult[ReturnCode] = "rcSuccess" 
+                    then Table.FromRecords({[Datum = QueryResult[Datum]]}) 
+                    else #table({"error"}, {"Query error."})
+    in
+        Table;
+
+Query = (Query as nullable text, IsQueryAmount as nullable logical) => 
+    let
+        ResultTable = 
+            if Query = null
+                then
+                    #table({}, {[]})
+                else
+                    if IsQueryAmount = true
+                        then
+                            UseQueryAmount(Query)
+                        else
+                            UseQuery(Query)              
+    in
+        ResultTable;
 
 GetItemsByItemGuids = (Index, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter) =>
     let
@@ -80,16 +144,17 @@ Logout = (ApiUrl, SessionId) =>
         LogoutUrl = ApiUrl & "LogOut",
         LogoutBody = "{ ""sessionId"": """ & SessionId & """ }"
     in
-        Web.Contents(LogoutUrl,
+        Json.Document(Web.Contents(LogoutUrl,
             [
                 Headers = [
                     #"Content-Type"="application/json",
                     RequestGUID=Text.NewGuid()
                 ],
                 Content = Text.ToBinary(LogoutBody),
-                Timeout=#duration(0, 0, 0, 10)
+                Timeout=#duration(0, 0, 0, 10),
+                IsRetry=true
             ]
-        );
+        ));
 
 Base64UrlToBase64 = (base64Url) =>
     let
@@ -99,7 +164,7 @@ Base64UrlToBase64 = (base64Url) =>
 
 AddPaddingToBase64String = (base64) =>
     let
-        base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then AddPaddingToBase64String(base64 & "=") else base64
+        base64 = if (Number.Mod(Text.Length(base64), 4)) <> 0 then @AddPaddingToBase64String(base64 & "=") else base64
     in
         base64;
 
@@ -124,14 +189,37 @@ GetUserNameFromToken = (token) =>
         UserName;
 
 eWayCRM_Type = type function (
-    optional IncludeRelations as (type logical meta [
-        Documentation.FieldCaption = "Include Relations",
-        Documentation.FieldDescription = "Load also relations between items."
-    ]))
+    optional options as (
+        type nullable [
+            optional IncludeRelations = (type logical meta [
+                Documentation.FieldCaption = "Include Relations",
+                Documentation.FieldDescription = "Load also relations between items.",
+                Documentation.AllowedValues = {
+                    false meta [ Documentation.Caption = "False" ],
+                    true meta [ Documentation.Caption = "True" ]
+                }
+            ]),
+            optional Query = (type text meta [
+                Documentation.FieldCaption = "Query",
+                Formatting.IsMultiLine = true,
+                Formatting.IsCode = true
+            ]),
+            optional IsQueryAmount = (type logical meta [
+                Documentation.FieldCaption = "Is query amount",
+                Documentation.FieldDescription = "True/False",
+                Documentation.AllowedValues = {
+                    false meta [ Documentation.Caption = "False" ],
+                    true meta [ Documentation.Caption = "True" ]
+                }
+            ])
+        ] meta [
+            Documentation.FieldCaption = "Advanced options"
+        ]))
     as table;
 
-eWayCRM_Implementation = (optional IncludeRelations as logical) =>
+eWayCRM_Implementation = (optional options as record) =>
     let
+        IncludeRelations = if options <> null and options[IncludeRelations] <> null then options[IncludeRelations] else false,
         Objects = #table(
             { "Name", "Key", "Data", "ItemKind", "ItemName", "IsLeaf" }, {
             { "Bookkeeping", "Carts", eWayCRM.Data("Carts", IncludeRelations), "Table", "Table", true},
@@ -164,7 +252,8 @@ eWayCRM_Implementation = (optional IncludeRelations as logical) =>
             { "Workflow Diagrams", "WorkflowModels", eWayCRM.Data("WorkflowModels", IncludeRelations), "Table", "Table", true},
             { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
             { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
-            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true}
+            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true},
+            { "Query", "Query", if options <> null then Query(options[Query], options[IsQueryAmount]) else Query(null, null), "Table", "Table", true}
             }),
         NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
     in
@@ -331,9 +420,7 @@ SchemaTransformTable = (table as table, schema as table, optional enforceSchema 
     in
         withType;
 
-// logoutResult is not actually used here, but if we don't use the logout result anywhere, PowerQuery won't free the session for unknown reasons
-// (probably something to do with unused variables and query optimisation). By adding a function param here and passing the logout result we fix this issue.
-ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table, optional logoutResult) as table =>
+ExpandRows = (table as table, schema as table, includeRelations as logical, optional additionalFields as table) as table =>
     let
         schemaNames = schema[Name],
         expanded = if (Table.HasColumns(table, { "Column1" })) then Table.ExpandRecordColumn(table, "Column1", schemaNames) else table,
