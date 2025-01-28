@@ -45,7 +45,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         LogoutResult = Logout(ApiUrl, SessionId),
         Table = if JsonDataTable <> null and LogoutResult[ReturnCode] = "rcSuccess" 
                     then ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable) 
-                    else #table({"error"}, {"Api error."})
+                    else "API Error: " & ToJsonString(LogoutResult)
     in
         Table;
 
@@ -83,7 +83,7 @@ UseQuery = (Query as text) =>
         LogoutResult = Logout(ApiUrl, SessionId),
         Table = if QueryResult[Data] <> null and LogoutResult[ReturnCode] = "rcSuccess" 
                     then Table.FromRecords(QueryResult[Data]) 
-                    else #table({"error"}, {"Query error."})
+                    else "Query error: " & ToJsonString(QueryResult)
     in
         Table;
 
@@ -103,7 +103,7 @@ UseQueryAmount = (Query as text) =>
         LogoutResult = Logout(ApiUrl, SessionId),
         Table = if QueryResult[Datum] <> null and LogoutResult[ReturnCode] = "rcSuccess" 
                     then Table.FromRecords({[Datum = QueryResult[Datum]]}) 
-                    else #table({"error"}, {"Query error."})
+                    else "Query error: " & ToJsonString(QueryResult)
     in
         Table;
 
@@ -156,6 +156,9 @@ Logout = (ApiUrl, SessionId) =>
             ]
         ));
 
+ToJsonString = (obj as any) =>
+    Text.FromBinary(Json.FromValue(obj));
+
 Base64UrlToBase64 = (base64Url) =>
     let
         base64 = AddPaddingToBase64String(Text.Replace(Text.Replace(base64Url, "-", "+"), "_", "/"))
@@ -204,9 +207,10 @@ eWayCRM_Type = type function (
                 Formatting.IsMultiLine = true,
                 Formatting.IsCode = true
             ]),
-            optional IsQueryAmount = (type logical meta [
-                Documentation.FieldCaption = "Is query amount",
-                Documentation.FieldDescription = "True/False",
+            optional QueryAmount = (type logical meta [
+                Documentation.FieldCaption = "Query amount",
+                Documentation.FieldDescription = "If set to ""true"" query will only return the count of items that would be returned, instead"
+                & " of returning the underlying data",
                 Documentation.AllowedValues = {
                     false meta [ Documentation.Caption = "False" ],
                     true meta [ Documentation.Caption = "True" ]
@@ -253,7 +257,7 @@ eWayCRM_Implementation = (optional options as record) =>
             { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
             { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
             { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true},
-            { "Query", "Query", if options <> null then Query(options[Query], options[IsQueryAmount]) else Query(null, null), "Table", "Table", true}
+            { "Query", "Query", if options <> null then Query(options[Query], options[QueryAmount]) else Query(null, null), "Table", "Table", true}
             }),
         NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
     in
