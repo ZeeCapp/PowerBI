@@ -73,7 +73,7 @@ UseQuery = (Query as text) =>
         ApiUrl = SessionResult[ApiUrl],
         SessionId = SessionResult[SessionId],
         QueryBody = "{ ""sessionId"": """ & SessionId & """, ""query"": " & Query & " }",
-        QueryResult = Json.Document(Web.Contents(ApiUrl & "/Query",
+        QueryResult = Json.Document(Web.Contents(ApiUrl & "Query",
             [
                 Headers = [#"Content-Type"="application/json"],
                 Content = Text.ToBinary(QueryBody),
@@ -93,7 +93,7 @@ UseQueryAmount = (Query as text) =>
         ApiUrl = SessionResult[ApiUrl],
         SessionId = SessionResult[SessionId],
         QueryBody = "{ ""sessionId"": """ & SessionId & """, ""query"": " & Query & " }",
-        QueryResult = Json.Document(Web.Contents(ApiUrl & "/QueryAmount",
+        QueryResult = Json.Document(Web.Contents(ApiUrl & "QueryAmount",
             [
                 Headers = [#"Content-Type"="application/json"],
                 Content = Text.ToBinary(QueryBody),
@@ -204,11 +204,12 @@ eWayCRM_Type = type function (
             ]),
             optional Query = (type text meta [
                 Documentation.FieldCaption = "Query",
+                Documentation.FieldDescription = "Query to be executed. (internal use only)",
                 Formatting.IsMultiLine = true,
                 Formatting.IsCode = true
             ]),
             optional QueryAmount = (type logical meta [
-                Documentation.FieldCaption = "Query amount",
+                Documentation.FieldCaption = "Query Amount",
                 Documentation.FieldDescription = "If set to ""true"" query will only return the count of items that would be returned, instead"
                 & " of returning the underlying data",
                 Documentation.AllowedValues = {
