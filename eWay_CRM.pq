@@ -221,13 +221,13 @@ eWayCRM_Type = type function (
             ]),
             optional Query = (type text meta [
                 Documentation.FieldCaption = "Query",
-                Documentation.FieldDescription = "Query to be executed. (internal use only)",
+                Documentation.FieldDescription = "Query to be executed.",
                 Formatting.IsMultiLine = true,
                 Formatting.IsCode = true
             ]),
             optional QueryAmount = (type logical meta [
                 Documentation.FieldCaption = "Query Amount",
-                Documentation.FieldDescription = "If set to ""true"" query will only return the count of items that would be returned, instead"
+                Documentation.FieldDescription = "If set to ""true"" query will only return count of the items."
                 & " of returning the underlying data",
                 Documentation.AllowedValues = {
                     false meta [ Documentation.Caption = "False" ],
@@ -953,6 +953,8 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"HID", type number},
         {"IsCompleted", type logical},
         {"IsLost", type logical},
+        {"LostDate", type datetimezone},
+        {"CompletedDate", type datetimezone},
         {"LastActivity", type datetimezone},
         {"LeadOriginEn", type text},
         {"NextStep", type datetimezone},
@@ -1039,6 +1041,8 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"InvoicePaymentDate", type datetimezone},
         {"IsCompleted", type logical},
         {"IsLost", type logical},
+        {"LostDate", type datetimezone},
+        {"CompletedDate", type datetimezone},
         {"LastActivity", type datetimezone},
         {"LicensePrice", type number},
         {"LicensePriceChanged", type datetimezone},
