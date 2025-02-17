@@ -261,7 +261,6 @@ eWayCRM_Implementation = (optional options as any) =>
             { "Drop Down Menu Values", "EnumValues", eWayCRM.Data("EnumValues", IncludeRelations), "Table", "Table", true},
             { "Emails", "Emails", eWayCRM.Data("Emails", IncludeRelations), "Table", "Table", true},
             { "Exchange Rates", "CurrencyExchangeRates", eWayCRM.Data("CurrencyExchangeRates", IncludeRelations), "Table", "Table", true},
-            { "Features", "Features", eWayCRM.Data("Features", IncludeRelations), "Table", "Table", true},
             { "Flows", "Flows", eWayCRM.Data("Flows", IncludeRelations), "Table", "Table", true},
             { "Global Settings", "GlobalSettings", eWayCRM.Data("GlobalSettings", IncludeRelations), "Table", "Table", true},
             { "Goals", "Goals", eWayCRM.Data("Goals", IncludeRelations), "Table", "Table", true},
