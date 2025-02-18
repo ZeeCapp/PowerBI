@@ -810,7 +810,11 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"WriteJournalActionTypeEn", type text}
     })},
     {"EnumValuesRelations", #table({"Name", "Type"}, {
-
+        {"EnumValueGuid", type text},
+        {"FieldName", type text},
+        {"ObjectTypeFolderName", type text},
+        {"ObjectTypeId", type number},
+        {"RelatedItemGuid", type text}
     })},
     {"Flows", #table({"Name", "Type"}, {
         {"ActionItemGuid", type text},
