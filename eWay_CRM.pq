@@ -720,7 +720,7 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"LastWriteTime", type datetimezone},
         {"Note", type text},
         {"PrevStateEn", type text},
-        {"Preview", type text},
+        {"Preview", type binary},
         {"PreviewHeight", type number},
         {"PreviewWidth", type number},
         {"StateEn", type text},
