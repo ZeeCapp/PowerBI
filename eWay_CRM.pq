@@ -42,7 +42,7 @@ eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
         Pages = List.Transform(PageIndices, each GetItemsByItemGuids(_, ApiUrl, FolderName, SessionId, IdentifiersList, IncludeRelationsParameter)),
         JsonData = List.Combine(Pages),
         JsonDataTable = Table.FromList(JsonData, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        LogoutResult = Logout(ApiUrl, SessionId),
+        LogoutResult = if List.Count(JsonData) = List.Count(JsonIdentifiers) then Logout(ApiUrl, SessionId) else [ReturnCode="rcSuccess"],
         Table = if JsonDataTable <> null and LogoutResult[ReturnCode] = "rcSuccess" 
                     then ExpandRows(JsonDataTable, InsertStandardFieldsToSchema(GetSchemaForEntity(FolderName)), IncludeRelations, AdditionalFieldsTable) 
                     else "API Error: " & ToJsonString(LogoutResult)
