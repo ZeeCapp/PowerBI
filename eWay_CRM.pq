@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "2.0.0"]
+[Version = "2.1.0"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
@@ -55,7 +55,7 @@ CreateSession = (Credential as record) =>
         UserName = GetUserNameFromToken(Credential[access_token]),
         ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
         LoginUrl = ApiUrl & "Login",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_200"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_210"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
