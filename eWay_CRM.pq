@@ -2,8 +2,11 @@
 [Version = "2.1.0"]
 section eWayCRM;
 
-[DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
+[DataSource.Kind="eWayCRM"]
 shared eWayCRM.Contents = Value.ReplaceType(eWayCRM_Implementation, eWayCRM_Type);
+
+[DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
+shared eWayCRM.Contents2 = Value.ReplaceType(eWayCRM_Implementation2, eWayCRM_Type2);
 
 eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
     let
@@ -209,6 +212,13 @@ GetUserNameFromToken = (token) =>
         UserName;
 
 eWayCRM_Type = type function (
+    optional IncludeRelations as (type logical meta [
+        Documentation.FieldCaption = "Include Relations",
+        Documentation.FieldDescription = "Load also relations between items."
+    ]))
+    as table;
+
+eWayCRM_Type2 = type function (
     optional options as (
         type nullable [
             optional IncludeRelations = (type logical meta [
@@ -239,7 +249,48 @@ eWayCRM_Type = type function (
         ]))
     as table;
 
-eWayCRM_Implementation = (optional options as any) =>
+eWayCRM_Implementation = (optional IncludeRelations as logical) =>
+    let
+        Objects = #table(
+            { "Name", "Key", "Data", "ItemKind", "ItemName", "IsLeaf" }, {
+            { "Bookkeeping", "Carts", eWayCRM.Data("Carts", IncludeRelations), "Table", "Table", true},
+            { "Calendar", "Calendars", eWayCRM.Data("Calendars", IncludeRelations), "Table", "Table", true},
+            { "Categories", "Groups", eWayCRM.Data("Groups", IncludeRelations), "Table", "Table", true},
+            { "Custom Fields", "AdditionalFields", eWayCRM.Data("AdditionalFields", IncludeRelations), "Table", "Table", true},
+            { "Companies", "Companies", eWayCRM.Data("Companies", IncludeRelations), "Table", "Table", true},
+            { "Contacts", "Contacts", eWayCRM.Data("Contacts", IncludeRelations), "Table", "Table", true},
+            { "Deals", "Leads", eWayCRM.Data("Leads", IncludeRelations), "Table", "Table", true},
+            { "Discount Lists", "SalePrices", eWayCRM.Data("SalePrices", IncludeRelations), "Table", "Table", true},
+            { "Documents", "Documents", eWayCRM.Data("Documents", IncludeRelations), "Table", "Table", true},
+            { "Drop Down Menu", "EnumTypes", eWayCRM.Data("EnumTypes", IncludeRelations), "Table", "Table", true},
+            { "Drop Down Menu Values", "EnumValues", eWayCRM.Data("EnumValues", IncludeRelations), "Table", "Table", true},
+            { "Emails", "Emails", eWayCRM.Data("Emails", IncludeRelations), "Table", "Table", true},
+            { "Exchange Rates", "CurrencyExchangeRates", eWayCRM.Data("CurrencyExchangeRates", IncludeRelations), "Table", "Table", true},
+            { "Features", "Features", eWayCRM.Data("Features", IncludeRelations), "Table", "Table", true},
+            { "Flows", "Flows", eWayCRM.Data("Flows", IncludeRelations), "Table", "Table", true},
+            { "Global Settings", "GlobalSettings", eWayCRM.Data("GlobalSettings", IncludeRelations), "Table", "Table", true},
+            { "Goals", "Goals", eWayCRM.Data("Goals", IncludeRelations), "Table", "Table", true},
+            { "Journal", "Journals", eWayCRM.Data("Journals", IncludeRelations), "Table", "Table", true},
+            { "Marketing", "MarketingCampaigns", eWayCRM.Data("MarketingCampaigns", IncludeRelations), "Table", "Table", true},
+            { "Marketing List", "MarketingListsRecords", eWayCRM.Data("MarketingListsRecords", IncludeRelations), "Table", "Table", true},
+            { "Multi Select Drop Down Relations", "EnumValuesRelations", eWayCRM.Data("EnumValuesRelations", IncludeRelations), "Table", "Table", true},
+            { "Products", "Goods", eWayCRM.Data("Goods", IncludeRelations), "Table", "Table", true},
+            { "Products in Bookkeeping Record", "GoodsInCart", eWayCRM.Data("GoodsInCart", IncludeRelations), "Table", "Table", true},
+            { "Projects", "Projects", eWayCRM.Data("Projects", IncludeRelations), "Table", "Table", true},
+            { "Recurrence Patterns", "RecurrencePatterns", eWayCRM.Data("RecurrencePatterns", IncludeRelations), "Table", "Table", true},
+            { "Tasks", "Tasks", eWayCRM.Data("Tasks", IncludeRelations), "Table", "Table", true},
+            { "Time Sheets", "WorkReports", eWayCRM.Data("WorkReports", IncludeRelations), "Table", "Table", true},
+            { "Workflow Diagrams", "WorkflowModels", eWayCRM.Data("WorkflowModels", IncludeRelations), "Table", "Table", true},
+            { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
+            { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
+            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true}
+            }),
+        NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
+    in
+        NavTable;
+
+
+eWayCRM_Implementation2 = (optional options as any) =>
     let
         IncludeRelations = if 
             options = true or (options <> null and Type.Is(Value.Type(options), type record) and Record.HasFields(options, "IncludeRelations") and Record.Field(options, "IncludeRelations") = true) 
@@ -327,7 +378,7 @@ CreateSha256Hash = (codeVerifier) =>
 StartLogin = (resourceUrl, state, display) =>
     let
         CodeVerifier = Text.NewGuid() & Text.NewGuid(),
-        AuthorizeUrl = "https://login.eway-crm.com/?" & Uri.BuildQueryString([
+        AuthorizeUrl = "https://login.eway-crm.dev/?" & Uri.BuildQueryString([
             client_id = clientId,
             scope = "api offline_access",
             state = state,
