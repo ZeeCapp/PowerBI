@@ -1,5 +1,5 @@
 ﻿// This file contains your Data Connector logic
-[Version = "2.1.0"]
+[Version = "2.2.0"]
 section eWayCRM;
 
 [DataSource.Kind="eWayCRM"]
@@ -58,7 +58,7 @@ CreateSession = (Credential as record) =>
         UserName = GetUserNameFromToken(Credential[access_token]),
         ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
         LoginUrl = ApiUrl & "Login",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_210"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_220"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -378,7 +378,7 @@ CreateSha256Hash = (codeVerifier) =>
 StartLogin = (resourceUrl, state, display) =>
     let
         CodeVerifier = Text.NewGuid() & Text.NewGuid(),
-        AuthorizeUrl = "https://login.eway-crm.dev/?" & Uri.BuildQueryString([
+        AuthorizeUrl = "https://login.eway-crm.com/?" & Uri.BuildQueryString([
             client_id = clientId,
             scope = "api offline_access",
             state = state,
