@@ -639,6 +639,7 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"Skype", type text},
         {"StateEn", type text},
         {"Suppliers", type logical},
+        {"TrackedDomains", type text},
         {"TypeEn", type text},
         {"VATNumber", type text},
         {"WebPage", type text}
@@ -1030,6 +1031,7 @@ SchemaTable = #table({"Entity", "SchemaTable"}, {
         {"EmailOptOut", type logical},
         {"EstimatedEnd", type datetimezone},
         {"EstimatedValue", type number},
+        {"EstimatedValueDefaultCurrency", type number},
         {"HID", type number},
         {"IsCompleted", type logical},
         {"IsLost", type logical},
