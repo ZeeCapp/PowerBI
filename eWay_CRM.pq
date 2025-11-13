@@ -251,6 +251,29 @@ eWayCRM_Type2 = type function (
 
 eWayCRM_Implementation = (optional IncludeRelations as logical) =>
     let
+        NavTable = eWayCRM_GetNavTable(type logical, IncludeRelations)
+    in
+        NavTable;
+
+
+eWayCRM_Implementation2 = (optional options as any) =>
+    let
+        NavTable = eWayCRM_GetNavTable(type record, options)
+    in
+        NavTable;
+
+eWayCRM_GetNavTable = (optionsType as type, optional options as any) => 
+    let
+        IsNewImplementation = if optionsType = type record then true else false,
+
+        IncludeRelations = if IsNewImplementation
+            then 
+                if options <> null and Type.Is(Value.Type(options), type record) and Record.HasFields(options, "IncludeRelations") and Record.Field(options, "IncludeRelations") = true
+                    then true 
+                    else false
+            else
+                options,
+
         Objects = #table(
             { "Name", "Key", "Data", "ItemKind", "ItemName", "IsLeaf" }, {
             { "Bookkeeping", "Carts", eWayCRM.Data("Carts", IncludeRelations), "Table", "Table", true},
@@ -266,7 +289,6 @@ eWayCRM_Implementation = (optional IncludeRelations as logical) =>
             { "Drop Down Menu Values", "EnumValues", eWayCRM.Data("EnumValues", IncludeRelations), "Table", "Table", true},
             { "Emails", "Emails", eWayCRM.Data("Emails", IncludeRelations), "Table", "Table", true},
             { "Exchange Rates", "CurrencyExchangeRates", eWayCRM.Data("CurrencyExchangeRates", IncludeRelations), "Table", "Table", true},
-            { "Features", "Features", eWayCRM.Data("Features", IncludeRelations), "Table", "Table", true},
             { "Flows", "Flows", eWayCRM.Data("Flows", IncludeRelations), "Table", "Table", true},
             { "Global Settings", "GlobalSettings", eWayCRM.Data("GlobalSettings", IncludeRelations), "Table", "Table", true},
             { "Goals", "Goals", eWayCRM.Data("Goals", IncludeRelations), "Table", "Table", true},
@@ -284,56 +306,26 @@ eWayCRM_Implementation = (optional IncludeRelations as logical) =>
             { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
             { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
             { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true}
-            }),
-        NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
-    in
-        NavTable;
+        }),
+        
+        // Add relevant nav table row based on if this is the new implementation or legacy
+        ObjectsFinal = if IsNewImplementation = true
+            then
+                Table.InsertRows(
+                    Objects,
+                    Table.RowCount(Objects),
+                    {[Name = "Query", Key = "Query", Data = (if options <> null then Query(options[Query], options[QueryAmount]) else Query(null, null)) as table, ItemKind = "Table", ItemName = "Table", IsLeaf = true]}
+                )
+            else
+                Table.InsertRows(
+                    Objects,
+                    13,
+                    {[Name = "Features", Key = "Features", Data = (eWayCRM.Data("Features", IncludeRelations)) as table, ItemKind = "Table", ItemName = "Table", IsLeaf = true]}
+                ),
 
-
-eWayCRM_Implementation2 = (optional options as any) =>
-    let
-        IncludeRelations = if 
-            options = true or (options <> null and Type.Is(Value.Type(options), type record) and Record.HasFields(options, "IncludeRelations") and Record.Field(options, "IncludeRelations") = true) 
-                then true 
-                else false,
-                
-        Objects = #table(
-            { "Name", "Key", "Data", "ItemKind", "ItemName", "IsLeaf" }, {
-            { "Bookkeeping", "Carts", eWayCRM.Data("Carts", IncludeRelations), "Table", "Table", true},
-            { "Calendar", "Calendars", eWayCRM.Data("Calendars", IncludeRelations), "Table", "Table", true},
-            { "Categories", "Groups", eWayCRM.Data("Groups", IncludeRelations), "Table", "Table", true},
-            { "Custom Fields", "AdditionalFields", eWayCRM.Data("AdditionalFields", IncludeRelations), "Table", "Table", true},
-            { "Companies", "Companies", eWayCRM.Data("Companies", IncludeRelations), "Table", "Table", true},
-            { "Contacts", "Contacts", eWayCRM.Data("Contacts", IncludeRelations), "Table", "Table", true},
-            { "Deals", "Leads", eWayCRM.Data("Leads", IncludeRelations), "Table", "Table", true},
-            { "Discount Lists", "SalePrices", eWayCRM.Data("SalePrices", IncludeRelations), "Table", "Table", true},
-            { "Documents", "Documents", eWayCRM.Data("Documents", IncludeRelations), "Table", "Table", true},
-            { "Drop Down Menu", "EnumTypes", eWayCRM.Data("EnumTypes", IncludeRelations), "Table", "Table", true},
-            { "Drop Down Menu Values", "EnumValues", eWayCRM.Data("EnumValues", IncludeRelations), "Table", "Table", true},
-            { "Emails", "Emails", eWayCRM.Data("Emails", IncludeRelations), "Table", "Table", true},
-            { "Exchange Rates", "CurrencyExchangeRates", eWayCRM.Data("CurrencyExchangeRates", IncludeRelations), "Table", "Table", true},
-            { "Flows", "Flows", eWayCRM.Data("Flows", IncludeRelations), "Table", "Table", true},
-            { "Global Settings", "GlobalSettings", eWayCRM.Data("GlobalSettings", IncludeRelations), "Table", "Table", true},
-            { "Goals", "Goals", eWayCRM.Data("Goals", IncludeRelations), "Table", "Table", true},
-            { "Journal", "Journals", eWayCRM.Data("Journals", IncludeRelations), "Table", "Table", true},
-            { "Marketing", "MarketingCampaigns", eWayCRM.Data("MarketingCampaigns", IncludeRelations), "Table", "Table", true},
-            { "Marketing List", "MarketingListsRecords", eWayCRM.Data("MarketingListsRecords", IncludeRelations), "Table", "Table", true},
-            { "Multi Select Drop Down Relations", "EnumValuesRelations", eWayCRM.Data("EnumValuesRelations", IncludeRelations), "Table", "Table", true},
-            { "Products", "Goods", eWayCRM.Data("Goods", IncludeRelations), "Table", "Table", true},
-            { "Products in Bookkeeping Record", "GoodsInCart", eWayCRM.Data("GoodsInCart", IncludeRelations), "Table", "Table", true},
-            { "Projects", "Projects", eWayCRM.Data("Projects", IncludeRelations), "Table", "Table", true},
-            { "Recurrence Patterns", "RecurrencePatterns", eWayCRM.Data("RecurrencePatterns", IncludeRelations), "Table", "Table", true},
-            { "Tasks", "Tasks", eWayCRM.Data("Tasks", IncludeRelations), "Table", "Table", true},
-            { "Time Sheets", "WorkReports", eWayCRM.Data("WorkReports", IncludeRelations), "Table", "Table", true},
-            { "Workflow Diagrams", "WorkflowModels", eWayCRM.Data("WorkflowModels", IncludeRelations), "Table", "Table", true},
-            { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
-            { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
-            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true},
-            { "Query", "Query", if options <> null then Query(options[Query], options[QueryAmount]) else Query(null, null), "Table", "Table", true}
-            }),
-        NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
+        NavigationTable = Table.ToNavigationTable(ObjectsFinal, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
     in
-        NavTable;
+        NavigationTable;
 
 Table.ToNavigationTable = (
     table as table,
