@@ -1,9 +1,12 @@
 ﻿// This file contains your Data Connector logic
-[Version = "2.1.0"]
+[Version = "2.2.0"]
 section eWayCRM;
 
-[DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
+[DataSource.Kind="eWayCRM"]
 shared eWayCRM.Contents = Value.ReplaceType(eWayCRM_Implementation, eWayCRM_Type);
+
+[DataSource.Kind="eWayCRM", Publish="eWayCRM.Publish"]
+shared eWayCRM.Contents2 = Value.ReplaceType(eWayCRM_Implementation2, eWayCRM_Type2);
 
 eWayCRM.Data = (FolderName as text, optional IncludeRelations as logical) =>
     let
@@ -55,7 +58,7 @@ CreateSession = (Credential as record) =>
         UserName = GetUserNameFromToken(Credential[access_token]),
         ApiUrl = if (Text.StartsWith(WebServiceUrl, "http://")) then WebServiceUrl & "InsecureAPI.svc/" else WebServiceUrl & "API.svc/",
         LoginUrl = ApiUrl & "Login",
-        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_210"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
+        SessionBody = "{ ""userName"": """ & UserName & """, ""appVersion"": ""PowerBI_Connector_220"", ""clientMachineIdentifier"": ""B39B35C4-70B3-4495-A1D4-258F3E557C19"" }",
         SessionResult = Json.Document(Web.Contents(LoginUrl,
             [
                 Headers = [#"Content-Type"="application/json"],
@@ -209,6 +212,13 @@ GetUserNameFromToken = (token) =>
         UserName;
 
 eWayCRM_Type = type function (
+    optional IncludeRelations as (type logical meta [
+        Documentation.FieldCaption = "Include Relations",
+        Documentation.FieldDescription = "Load also relations between items."
+    ]))
+    as table;
+
+eWayCRM_Type2 = type function (
     optional options as (
         type nullable [
             optional IncludeRelations = (type logical meta [
@@ -239,13 +249,31 @@ eWayCRM_Type = type function (
         ]))
     as table;
 
-eWayCRM_Implementation = (optional options as any) =>
+eWayCRM_Implementation = (optional IncludeRelations as logical) =>
     let
-        IncludeRelations = if 
-            options = true or (options <> null and Type.Is(Value.Type(options), type record) and Record.HasFields(options, "IncludeRelations") and Record.Field(options, "IncludeRelations") = true) 
-                then true 
-                else false,
-                
+        NavTable = eWayCRM_GetNavTable(type logical, IncludeRelations)
+    in
+        NavTable;
+
+
+eWayCRM_Implementation2 = (optional options as any) =>
+    let
+        NavTable = eWayCRM_GetNavTable(type record, options)
+    in
+        NavTable;
+
+eWayCRM_GetNavTable = (optionsType as type, optional options as any) => 
+    let
+        IsNewImplementation = if optionsType = type record then true else false,
+
+        IncludeRelations = if IsNewImplementation
+            then 
+                if options <> null and Type.Is(Value.Type(options), type record) and Record.HasFields(options, "IncludeRelations") and Record.Field(options, "IncludeRelations") = true
+                    then true 
+                    else false
+            else
+                options,
+
         Objects = #table(
             { "Name", "Key", "Data", "ItemKind", "ItemName", "IsLeaf" }, {
             { "Bookkeeping", "Carts", eWayCRM.Data("Carts", IncludeRelations), "Table", "Table", true},
@@ -277,12 +305,27 @@ eWayCRM_Implementation = (optional options as any) =>
             { "Workflow Diagrams", "WorkflowModels", eWayCRM.Data("WorkflowModels", IncludeRelations), "Table", "Table", true},
             { "Workflow History", "WorkflowHistoryRecords", eWayCRM.Data("WorkflowHistoryRecords", IncludeRelations), "Table", "Table", true},
             { "Users", "Users", eWayCRM.Data("Users", IncludeRelations), "Table", "Table", true},
-            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true},
-            { "Query", "Query", if options <> null then Query(options[Query], options[QueryAmount]) else Query(null, null), "Table", "Table", true}
-            }),
-        NavTable = Table.ToNavigationTable(Objects, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
+            { "User Settings", "UserSettings", eWayCRM.Data("UserSettings", IncludeRelations), "Table", "Table", true}
+        }),
+        
+        // Add relevant nav table row based on if this is the new implementation or legacy
+        ObjectsFinal = if IsNewImplementation = true
+            then
+                Table.InsertRows(
+                    Objects,
+                    Table.RowCount(Objects),
+                    {[Name = "Query", Key = "Query", Data = (if options <> null then Query(options[Query], options[QueryAmount]) else Query(null, null)) as table, ItemKind = "Table", ItemName = "Table", IsLeaf = true]}
+                )
+            else
+                Table.InsertRows(
+                    Objects,
+                    13,
+                    {[Name = "Features", Key = "Features", Data = (eWayCRM.Data("Features", IncludeRelations)) as table, ItemKind = "Table", ItemName = "Table", IsLeaf = true]}
+                ),
+
+        NavigationTable = Table.ToNavigationTable(ObjectsFinal, {"Key"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
     in
-        NavTable;
+        NavigationTable;
 
 Table.ToNavigationTable = (
     table as table,
