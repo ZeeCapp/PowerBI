@@ -1389,15 +1389,13 @@ GetSchemaForEntity = (entity as text) as table => try SchemaTable{[Entity=entity
 
 InsertAdditionalFieldsToSchema = (additionalFields as table, schema as table) as table =>
     let
-        filteredSchema = Table.SelectRows(schema, each [Name] <> "AdditionalFields"),
-        table = Table.InsertRows(filteredSchema, 0, Table.TransformRows(additionalFields, (row) as record => [Name = "af_" & Number.ToText(row[FieldId]), Type = GetAdditionalFieldType(row[Type])]))
+        table = Table.InsertRows(schema, 0, Table.TransformRows(additionalFields, (row) as record => [Name = "af_" & Number.ToText(row[FieldId]), Type = GetAdditionalFieldType(row[Type])]))
     in
         table;
 
 InsertRelationFieldsToSchema = (schema as table) as table =>
     let
-        filteredSchema = Table.SelectRows(schema, each [Name] <> "Relations"),
-        table = Table.InsertRows(filteredSchema, 0, Table.TransformRows(RelationsSchema, (row) as record => [Name = row[Name], Type = row[Type]]))
+        table = Table.InsertRows(schema, 0, Table.TransformRows(RelationsSchema, (row) as record => [Name = row[Name], Type = row[Type]]))
     in
         table;
 
